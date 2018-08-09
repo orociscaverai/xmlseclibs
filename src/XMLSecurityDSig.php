@@ -291,6 +291,40 @@ class XMLSecurityDSig
         return $node->C14N($exclusive, $withComments, $arXPath, $prefixList);
     }
 
+    private function getPrefixList($inclusiveNamespacesCnt)
+    {
+        $prefixList = array();
+
+        $node = $inclusiveNamespacesCnt->firstChild;
+        while ($node) {
+
+            if ($node->localName == 'InclusiveNamespaces') {
+
+                if ($prefixListAttr = $node->getAttribute('PrefixList')) {
+
+                    $prefixListAttr = explode(" ", $prefixListAttr);
+                    foreach ($prefixListAttr AS $prefix) {
+                        $prefix = trim($prefix);
+                        if (!empty($prefix)) {
+                            $prefixList[] = $prefix;
+                        }
+                    }
+
+                }
+                break;
+            }
+
+            $node = $node->nextSibling;
+
+        }
+
+        if (count($prefixList) == 0) {
+            return null;
+        }
+
+        return $prefixList;
+    }
+
     /**
      * @return null|string
      */
@@ -304,12 +338,18 @@ class XMLSecurityDSig
             $query = "./secdsig:SignedInfo";
             $nodeset = $xpath->query($query, $this->sigNode);
             if ($signInfoNode = $nodeset->item(0)) {
+
+                $prefixList = null;
                 $query = "./secdsig:CanonicalizationMethod";
                 $nodeset = $xpath->query($query, $signInfoNode);
                 if ($canonNode = $nodeset->item(0)) {
                     $canonicalmethod = $canonNode->getAttribute('Algorithm');
+
+                    $prefixList = $this->getPrefixList($canonNode);
+
+
                 }
-                $this->signedInfo = $this->canonicalizeData($signInfoNode, $canonicalmethod);
+                $this->signedInfo = $this->canonicalizeData($signInfoNode, $canonicalmethod, null, $prefixList);
                 return $this->signedInfo;
             }
         }
